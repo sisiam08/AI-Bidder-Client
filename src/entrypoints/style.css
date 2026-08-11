@@ -1,0 +1,66 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 226 40% 11%;
+    --foreground: 215 30% 92%;
+    --card: 226 35% 16% / 0.55;
+    --card-foreground: 215 30% 92%;
+    --popover: 226 35% 16% / 0.85;
+    --popover-foreground: 215 30% 92%;
+    --primary: 173 62% 56%;
+    --primary-foreground: 226 40% 11%;
+    --secondary: 224 30% 22%;
+    --secondary-foreground: 215 30% 92%;
+    --muted: 224 30% 22%;
+    --muted-foreground: 220 20% 74%;
+    --accent: 173 45% 22%;
+    --accent-foreground: 173 60% 82%;
+    --destructive: 4 62% 62%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 25% 65% / 0.14;
+    --input: 222 25% 26%;
+    --ring: 173 62% 56%;
+    --radius: 0.5rem;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    height: auto;
+    min-height: 100%;
+  }
+
+  body {
+    margin: 0;
+    font-family: 'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: hsl(var(--foreground));
+    background:
+      radial-gradient(
+        110% 70% at 0% 0%,
+        hsl(222 55% 24% / 0.9) 0%,
+        transparent 55%
+      ),
+      radial-gradient(
+        110% 80% at 100% 100%,
+        hsl(173 55% 26% / 0.5) 0%,
+        transparent 50%
+      ),
+      linear-gradient(
+        160deg,
+        hsl(228 45% 9%) 0%,
+        hsl(223 38% 12%) 50%,
+        hsl(231 40% 10%) 100%
+      );
+    background-attachment: fixed;
+  }
+}
