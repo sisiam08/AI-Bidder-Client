@@ -1,0 +1,29 @@
+# compiled output
+node_modules
+.output
+.wxt
+dev
+
+# logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+lerna-debug.log*
+
+# env files
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+
+# IDE
+.idea
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
