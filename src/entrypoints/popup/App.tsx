@@ -70,8 +70,8 @@ export default function PopupApp() {
   async function ensureSession(config: { email: string; aiProvider: string }) {
     const token = await sessionTokenStorage.getValue()
     if (token) return
-    try {api.auth.setup
-      await ({
+    try {
+      await api.auth.setup({
         email: config.email,
         aiProvider: config.aiProvider,
       })
