@@ -12,7 +12,7 @@ function notifyListeners(event: WsEvent) {
     try {
       listener(event)
     } catch {
-      // ignore listener errors
+      console.error('[ws] listener error:', event)
     }
   }
 }
@@ -45,8 +45,8 @@ function mapEvent(event: string, data: unknown): WsEvent | null {
 }
 
 function wsUrl(): string {
-  const wsOrigin = API_BASE_URL.replace(/\/api$/, '').replace(/^http/, 'ws')
-  return `${wsOrigin}/v1/ws`
+  const base = API_BASE_URL.replace(/\/+$/, '')
+  return `${base.replace(/^http/, 'ws')}/ws`
 }
 
 export function connect(): Promise<void> {

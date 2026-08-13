@@ -98,7 +98,7 @@ src/
 │   ├── upwork.content.ts      # Upwork job detection + proposal filling
 │   └── freelancer.content.ts  # Freelancer.com job detection + proposal filling
 ├── lib/
-│   ├── api-client.ts          # Server API client (base URL http://localhost:5000/api)
+│   ├── api-client.ts          # Server API client (base URL http://localhost:5000/api/v1)
 │   ├── storage.ts             # Session token + config storage
 │   ├── types.ts               # Shared types (Job, Proposal, etc.)
 │   └── utils.ts               # Helpers (platform matching, URL building)

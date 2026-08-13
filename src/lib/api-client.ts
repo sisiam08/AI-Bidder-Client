@@ -9,7 +9,7 @@ import type {
 import { ApiError } from './types'
 import { sessionTokenStorage } from './storage'
 
-export const API_BASE_URL = 'http://localhost:5000/api'
+export const API_BASE_URL = 'http://localhost:5000/api/v1'
 
 export interface HealthStatus {
   status: string
@@ -79,7 +79,7 @@ export interface SetupResult {
 export const api = {
   auth: {
     setup: async (payload: SetupPayload) => {
-      const result = await request<SetupResult>('/v1/auth/setup', {
+      const result = await request<SetupResult>('/auth/setup', {
         method: 'POST',
         body: JSON.stringify(payload),
       })
@@ -88,7 +88,7 @@ export const api = {
     },
     logout: async () => {
       try {
-        return await request<{ ok: boolean }>('/v1/auth/logout', {
+        return await request<{ ok: boolean }>('/auth/logout', {
           method: 'POST',
         })
       } finally {
@@ -98,32 +98,32 @@ export const api = {
   },
   jobs: {
     list: (params?: JobListParams) =>
-      request<Job[]>(`/v1/jobs${qs(params as Record<string, string | undefined>)}`),
+      request<Job[]>(`/jobs${qs(params as Record<string, string | undefined>)}`),
     create: (payload: ExtractedJob) =>
-      request<Job>('/v1/jobs', {
+      request<Job>('/jobs', {
         method: 'POST',
         body: JSON.stringify(payload),
       }),
-    get: (id: string) => request<JobDetail>(`/v1/jobs/${id}`),
-    proposal: (id: string) => request<ProposalResponse>(`/v1/jobs/${id}/proposal`),
+    get: (id: string) => request<JobDetail>(`/jobs/${id}`),
+    proposal: (id: string) => request<ProposalResponse>(`/jobs/${id}/proposal`),
     approve: (id: string) =>
-      request<void>(`/v1/jobs/${id}/approve`, { method: 'POST' }),
+      request<void>(`/jobs/${id}/approve`, { method: 'POST' }),
     reject: (id: string, reason?: string) =>
-      request<void>(`/v1/jobs/${id}/reject`, {
+      request<void>(`/jobs/${id}/reject`, {
         method: 'POST',
         body: JSON.stringify({ reason }),
       }),
     submit: (id: string) =>
-      request<void>(`/v1/jobs/${id}/submit`, { method: 'POST' }),
+      request<void>(`/jobs/${id}/submit`, { method: 'POST' }),
     markProposalFilled: (id: string) =>
-      request<void>(`/v1/jobs/${id}/proposal/fill`, { method: 'POST' }),
+      request<void>(`/jobs/${id}/proposal/fill`, { method: 'POST' }),
     bidBlocked: (id: string, reasons: string[]) =>
-      request<{ ok: boolean }>(`/v1/jobs/${id}/bid-blocked`, {
+      request<{ ok: boolean }>(`/jobs/${id}/bid-blocked`, {
         method: 'POST',
         body: JSON.stringify({ reasons }),
       }),
   },
   health: {
-    check: () => request<HealthStatus>('/v1/health'),
+    check: () => request<HealthStatus>('/health'),
   },
 }
