@@ -17,12 +17,20 @@ function handleFillResult(
   result: FillResult | null | undefined,
   data: ApprovedProposal,
 ) {
-  if (!result || !result.blocked) return;
-  const reasons = result.blockedReasons ?? ["unspecified"];
-  const reasonText = reasons.join("; ");
-  showToast(`Bid blocked: ${reasonText}`, "error");
-  if (data.jobId) {
-    void notifyBidBlocked({ jobId: data.jobId, reasons });
+  if (!result) return;
+  if (result.blocked) {
+    const reasons = result.blockedReasons ?? ["unspecified"];
+    const reasonText = reasons.join("; ");
+    showToast(`Bid blocked: ${reasonText}`, "error");
+    if (data.jobId) {
+      void notifyBidBlocked({ jobId: data.jobId, reasons });
+    }
+    return;
+  }
+  if (result.success && data.jobId) {
+    void browser.runtime
+      .sendMessage({ type: "MARK_PROPOSAL_FILLED", jobId: data.jobId })
+      .catch(() => {});
   }
 }
 
@@ -86,14 +94,17 @@ export default defineContentScript({
           location.pathname.startsWith(pending.externalJobId) ||
           (targetId && currentId === targetId)
         ) {
-          const result = upworkAdapter.fillProposal(pending);
-          handleFillResult(result, pending);
-          if (result.success || result.blocked) {
-            pendingFillStorage.setValue(null);
-            return;
-          }
+          Promise.resolve(upworkAdapter.fillProposal(pending)).then((result) => {
+            handleFillResult(result, pending);
+            if (result.success || result.blocked) {
+              pendingFillStorage.setValue(null);
+              return;
+            }
+            scheduleFillRetry();
+          });
+        } else {
+          scheduleFillRetry();
         }
-        scheduleFillRetry();
       });
     };
 
@@ -112,9 +123,11 @@ export default defineContentScript({
       (msg: unknown, _sender, sendResponse: (response: unknown) => void) => {
         const m = msg as { type?: string; data?: ApprovedProposal };
         if (m.type === "FILL_PROPOSAL" && m.data) {
-          const result = upworkAdapter.fillProposal(m.data);
-          handleFillResult(result, m.data);
-          sendResponse(result);
+          const data = m.data;
+          Promise.resolve(upworkAdapter.fillProposal(data)).then((result) => {
+            handleFillResult(result, data);
+            sendResponse(result);
+          });
           return true;
         }
         if (m.type === "DETECT_JOBS") {

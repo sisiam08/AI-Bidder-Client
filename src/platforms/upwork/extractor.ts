@@ -20,6 +20,13 @@ function parseUpworkCardBudget(text: string): Record<string, unknown> {
   return result
 }
 
+function extractUpworkTimeline(text: string): string | undefined {
+  const m = text.match(
+    /(?:Project Length|Expected duration|Estimated duration|Duration|Timeline)\s*[:.-]?\s*([^\n]{2,50})/i,
+  )
+  return m?.[1]?.trim().replace(/[•·]/g, '').replace(/\s+/g, ' ') || undefined
+}
+
 function parseUpworkRelativeTime(text: string): string {
   const t = text.trim().toLowerCase()
   const now = Date.now()
@@ -111,6 +118,9 @@ function extractUpworkCard(card: HTMLElement): ExtractedJob | null {
     ? parseUpworkRelativeTime(postedEl)
     : new Date().toISOString()
 
+  const timeline = extractUpworkTimeline(card.innerText)
+  if (timeline) clientInfo.timeline = timeline
+
   return {
     platform: 'upwork',
     externalJobId,
@@ -189,6 +199,8 @@ function parseUpworkClientInfo(): Record<string, unknown> {
       info.rating = rating
     }
   }
+  const timeline = extractUpworkTimeline(document.body?.innerText ?? '')
+  if (timeline) info.timeline = timeline
   return info
 }
 

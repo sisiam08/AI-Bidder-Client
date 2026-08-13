@@ -56,6 +56,18 @@ export default defineBackground(() => {
             },
           )
       }
+      if (m?.type === 'MARK_PROPOSAL_FILLED' && m.jobId) {
+        console.log('[background] MARK_PROPOSAL_FILLED for job', m.jobId)
+        return api.jobs
+          .markProposalFilled(m.jobId)
+          .then(
+            () => ({ status: 'sent' }),
+            (err) => {
+              console.error('[background] MARK_PROPOSAL_FILLED failed:', err)
+              return { status: 'error' }
+            },
+          )
+      }
       return undefined
     },
   )

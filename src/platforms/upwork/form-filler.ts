@@ -25,8 +25,8 @@ export function fillUpworkProposal(data: ApprovedProposal): FillResult {
   highlight(textarea)
   filledFields.push('proposal')
 
-  const budgetAmount = (data.budget as { amount?: number })?.amount
-  if (typeof budgetAmount === 'number') {
+  const budgetAmount = clampBidAmount(data)
+  if (budgetAmount !== null) {
     const budgetInput = document.querySelector<HTMLInputElement>(
       'input[data-test="budget-amount"], input[name="budget"], input[data-budget]',
     )
@@ -51,6 +51,33 @@ export function fillUpworkProposal(data: ApprovedProposal): FillResult {
   }
 
   return { success: true, filledFields }
+}
+
+function clampBidAmount(data: ApprovedProposal): number | null {
+  const raw = (data.budget as { amount?: number })?.amount
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return null
+  const client = (data.clientBudget ?? {}) as {
+    max?: number
+    min?: number
+  }
+  let amount = raw
+  if (
+    typeof client.max === 'number' &&
+    Number.isFinite(client.max) &&
+    client.max > 0 &&
+    amount > client.max
+  ) {
+    amount = client.max
+  }
+  if (
+    typeof client.min === 'number' &&
+    Number.isFinite(client.min) &&
+    client.min > 0 &&
+    amount < client.min
+  ) {
+    amount = client.min
+  }
+  return Math.round(amount * 100) / 100
 }
 
 function detectBidRestrictions(): string[] {

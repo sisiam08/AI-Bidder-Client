@@ -35,6 +35,13 @@ function parseRelativeTime(text: string): string {
   return new Date(now - n * (multipliers[unit] ?? 0)).toISOString()
 }
 
+function extractFreelancerTimeline(text: string): string | undefined {
+  const m = text.match(
+    /(?:Project Timeline|Project duration|Estimated duration|Expected duration|Timeframe|Duration|Deadline)\s*[:.-]?\s*([^\n]{2,50})/i,
+  )
+  return m?.[1]?.trim().replace(/[•·]/g, '').replace(/\s+/g, ' ') || undefined
+}
+
 function isHourlyBudget(text: string): boolean {
   return /per\s*hour|\/hr|per\s*hr|hourly/i.test(text)
 }
@@ -111,6 +118,9 @@ function extractCard(card: HTMLElement): ExtractedJob | null {
   const allText = card.innerText
   const bidsMatch = allText.match(/(\d+)\s*bids?/i)
   if (bidsMatch) clientInfo.bids = Number(bidsMatch[1])
+
+  const timeline = extractFreelancerTimeline(allText)
+  if (timeline) clientInfo.timeline = timeline
 
   const timeMatch = allText.match(
     /\d+\s*(?:minute|min|hour|hr|day|week|month|year)s?\s+ago/i,
@@ -194,6 +204,9 @@ function extractSearchCard(card: HTMLElement): ExtractedJob | null {
   )
   const bidsMatch = bidsEl?.textContent?.match(/(\d+)\s*bids?/i)
   if (bidsMatch) clientInfo.bids = Number(bidsMatch[1])
+
+  const timeline = extractFreelancerTimeline(card.innerText)
+  if (timeline) clientInfo.timeline = timeline
 
   return {
     platform: 'freelancer',
@@ -286,6 +299,8 @@ function parseFreelancerClientInfo(): Record<string, unknown> {
       info.rating = rating
     }
   }
+  const timeline = extractFreelancerTimeline(text)
+  if (timeline) info.timeline = timeline
   return info
 }
 

@@ -6,6 +6,6 @@ export interface PlatformAdapter {
   detect(): boolean
   extractJob(): ExtractedJob | null
   extractJobs(): ExtractedJob[]
-  fillProposal(data: ApprovedProposal): FillResult
+  fillProposal(data: ApprovedProposal): FillResult | Promise<FillResult>
   getFormFields(): Record<string, HTMLElement | null>
 }

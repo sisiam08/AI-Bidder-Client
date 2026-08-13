@@ -7,7 +7,7 @@ export default defineConfig({
     "@": fileURLToPath(new URL("./src", import.meta.url)),
   },
   manifest: {
-    name: "AI Bidder",
+    name: "AI Bidder for Freelance Jobs",
     description: "Bid on freelance jobs using AI",
     version: "0.1.0",
     permissions: [

@@ -99,12 +99,22 @@ function handleFillResult(
   result: FillResult | null | undefined,
   data: ApprovedProposal,
 ) {
-  if (!result || !result.blocked) return;
-  const reasons = result.blockedReasons ?? ["unspecified"];
-  const reasonText = reasons.join("; ");
-  showToast(`Bid blocked: ${reasonText}`, "error");
-  if (data.jobId) {
-    void notifyBidBlocked({ jobId: data.jobId, reasons });
+  console.log("[freelancer:fill] fill result:", result);
+  if (!result) return;
+  if (result.blocked) {
+    const reasons = result.blockedReasons ?? ["unspecified"];
+    const reasonText = reasons.join("; ");
+    console.log("[freelancer:fill] blocked:", reasonText);
+    showToast(`Bid blocked: ${reasonText}`, "error");
+    if (data.jobId) {
+      void notifyBidBlocked({ jobId: data.jobId, reasons });
+    }
+    return;
+  }
+  if (result.success && data.jobId) {
+    void browser.runtime
+      .sendMessage({ type: "MARK_PROPOSAL_FILLED", jobId: data.jobId })
+      .catch(() => {});
   }
 }
 
@@ -117,26 +127,29 @@ export default defineContentScript({
     if (w.__agenticFreelancerReady) return;
     w.__agenticFreelancerReady = true;
 
-    const attemptPendingFill = () => {
-      pendingFillStorage.getValue().then((pending) => {
-        if (
-          !pending ||
-          pending.platform !== "freelancer" ||
-          !pending.externalJobId
-        )
+    const attemptPendingFill = async () => {
+      const pending = await pendingFillStorage.getValue();
+      if (
+        !pending ||
+        pending.platform !== "freelancer" ||
+        !pending.externalJobId
+      )
+        return;
+      const currentSlug = parseFreelancerSlug(location.pathname);
+      const targetSlug = parseFreelancerSlug(pending.externalJobId);
+      if (currentSlug === targetSlug) {
+        const result = await freelancerAdapter.fillProposal(pending);
+        handleFillResult(result, pending);
+        if (result.success || result.blocked) {
+          pendingFillStorage.setValue(null);
           return;
-        const currentSlug = parseFreelancerSlug(location.pathname);
-        const targetSlug = parseFreelancerSlug(pending.externalJobId);
-        if (currentSlug === targetSlug) {
-          const result = freelancerAdapter.fillProposal(pending);
-          handleFillResult(result, pending);
-          if (result.success || result.blocked) {
-            pendingFillStorage.setValue(null);
-            return;
-          }
         }
-        scheduleFillRetry();
-      });
+        console.log(
+          "[freelancer:fill] scheduling retry after error result",
+          result?.error,
+        );
+      }
+      scheduleFillRetry();
     };
 
     let fillRetryTimer: number | undefined;
@@ -157,8 +170,12 @@ export default defineContentScript({
         | { type: "DETECT_JOBS" }
         | { type: "NO_SESSION" };
       if (m.type === "FILL_PROPOSAL") {
-        const result = freelancerAdapter.fillProposal(m.data);
-        handleFillResult(result, m.data);
+        const data = m.data;
+        void Promise.resolve(freelancerAdapter.fillProposal(data)).then(
+          (result) => {
+            handleFillResult(result, data);
+          },
+        );
       } else if (m.type === "WS_EVENT") {
         if (m.event === "job.analyzed" || m.event === "job.approved") {
           if (m.jobId) highlightCard(m.jobId);

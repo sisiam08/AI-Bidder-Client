@@ -101,6 +101,8 @@ export interface ApprovedProposal {
   externalJobId?: string;
   proposalText: string;
   budget: Record<string, unknown>;
+  clientBudget?: Record<string, unknown>;
+  clientTimeline?: string;
   timeline?: string;
 }
 
