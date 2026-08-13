@@ -1,5 +1,6 @@
 ﻿import { defineContentScript } from "wxt/sandbox";
 import { freelancerAdapter } from "../platforms/freelancer/index";
+import { parseFreelancerSlug } from "../platforms/freelancer/url";
 import { expandCardDescriptions } from "../platforms/freelancer/extractor";
 import {
   detectSettingsStorage,
@@ -124,12 +125,9 @@ export default defineContentScript({
           !pending.externalJobId
         )
           return;
-        const idMatch = location.pathname.match(/\/projects\/([^/]+)/);
-        if (
-          location.pathname === pending.externalJobId ||
-          location.pathname.startsWith(pending.externalJobId) ||
-          (idMatch && idMatch[1] === pending.externalJobId)
-        ) {
+        const currentSlug = parseFreelancerSlug(location.pathname);
+        const targetSlug = parseFreelancerSlug(pending.externalJobId);
+        if (currentSlug === targetSlug) {
           const result = freelancerAdapter.fillProposal(pending);
           handleFillResult(result, pending);
           if (result.success || result.blocked) {

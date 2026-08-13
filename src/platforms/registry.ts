@@ -1,6 +1,7 @@
 import type { PlatformAdapter } from './platform.interface'
 import { upworkAdapter } from './upwork/index'
 import { freelancerAdapter } from './freelancer/index'
+import { freelancerProjectUrl } from './freelancer/url'
 
 const adapters: PlatformAdapter[] = [upworkAdapter, freelancerAdapter]
 
@@ -22,16 +23,8 @@ export function getProposalUrl(
       const id = idMatch?.[1] ?? externalJobId
       return `https://www.upwork.com/ab/proposals/apply/~${id}`
     }
-    case 'freelancer': {
-      const base = externalJobId.startsWith('/')
-        ? externalJobId
-        : `/projects/${externalJobId}`
-      const trimmed = base.replace(/\/+$/, '')
-      const path = trimmed.endsWith('/bid')
-        ? trimmed
-        : `${trimmed}/bid`
-      return `https://www.freelancer.com${path}`
-    }
+    case 'freelancer':
+      return freelancerProjectUrl(externalJobId)
     default:
       return null
   }

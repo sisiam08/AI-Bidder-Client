@@ -11,6 +11,7 @@ import {
 import type { ApprovedProposal, ExtractedJob, FillResult } from '../lib/types'
 import type { SubmitResult } from '../lib/submit-job'
 import { getProposalUrl } from '../platforms/registry'
+import { parseFreelancerSlug } from '../platforms/freelancer/url'
 import { browser } from 'wxt/browser'
 
 export default defineBackground(() => {
@@ -267,15 +268,9 @@ function matchesProposalTab(url: string, data: ApprovedProposal): boolean {
     return !!targetId && targetId === currentId
   }
   if (/freelancer\.com/.test(url)) {
-    const targetPath = externalJobId.startsWith('/')
-      ? externalJobId.replace(/\/+$/, '')
-      : `/projects/${externalJobId}`
-    const normalized = path.replace(/\/bid$/, '')
-    return (
-      normalized === targetPath ||
-      normalized.startsWith(`${targetPath}/`) ||
-      targetPath.endsWith(normalized)
-    )
+    const targetSlug = parseFreelancerSlug(externalJobId)
+    const currentSlug = parseFreelancerSlug(path)
+    return !!targetSlug && targetSlug === currentSlug
   }
   return false
 }

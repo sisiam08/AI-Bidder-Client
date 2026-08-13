@@ -296,7 +296,7 @@ export function extractFreelancerJob(): ExtractedJob | null {
   const descEl = document.querySelector(
     'div[class*="description"], .PageProjectViewLogedIn-description',
   )
-  const jobIdMatch = location.pathname.match(/\/projects\/([^/]+)/)
+  const jobIdMatch = location.pathname.match(/^\/projects\/(.+?)(?:\/(?:details|bid))?$/)
 
   if (!titleEl || !jobIdMatch) return null
 
