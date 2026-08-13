@@ -73,7 +73,7 @@ export default defineBackground(() => {
   )
 
   onWsEvent(async (event) => {
-    broadcast(event.type, event.jobId)
+    broadcast(event.type, event.jobId, event.data)
 
     if (event.type !== 'job.approved') return
     const data = event.data as unknown as ApprovedProposal
@@ -247,12 +247,12 @@ async function onDetectMenuClick(
   }
 }
 
-async function broadcast(type: string, jobId?: string) {
+async function broadcast(type: string, jobId?: string, data?: unknown) {
   const tabs = await browser.tabs.query({})
   for (const tab of tabs) {
     if (typeof tab.id !== 'number') continue
     browser.tabs
-      .sendMessage(tab.id, { type: 'WS_EVENT', event: type, jobId })
+      .sendMessage(tab.id, { type: 'WS_EVENT', event: type, jobId, data })
       .catch(() => {})
   }
 }

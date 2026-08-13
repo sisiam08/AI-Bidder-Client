@@ -13,6 +13,30 @@ import type { ApprovedProposal, FillResult } from "../lib/types";
 import { browser } from "wxt/browser";
 import type { ContentScriptContext } from "wxt/client";
 
+let lastAiFailureToast: { message: string; at: number } | null = null;
+
+function friendlyAiFailureMessage(error: string): string {
+  const provider = /AI provider \(([^)]+)\)/.exec(error)?.[1];
+  if (provider) {
+    const label = provider.toLowerCase() === "ollama" ? "Ollama" : provider;
+    return `AI analysis failed — ${label} is not installed or not running on your machine. You must install and start ${label}, then try again.`;
+  }
+  return "AI analysis failed — your AI provider is unreachable. Please install/start it or check your configuration.";
+}
+
+function showAiFailureToast(error: string) {
+  const now = Date.now();
+  if (
+    lastAiFailureToast &&
+    lastAiFailureToast.message === error &&
+    now - lastAiFailureToast.at < 10000
+  ) {
+    return;
+  }
+  lastAiFailureToast = { message: error, at: now };
+  showToast(friendlyAiFailureMessage(error), "error", 8000);
+}
+
 function handleFillResult(
   result: FillResult | null | undefined,
   data: ApprovedProposal,
@@ -121,7 +145,12 @@ export default defineContentScript({
 
     browser.runtime.onMessage.addListener(
       (msg: unknown, _sender, sendResponse: (response: unknown) => void) => {
-        const m = msg as { type?: string; data?: ApprovedProposal };
+        const m = msg as {
+          type?: string;
+          data?: ApprovedProposal;
+          event?: string;
+          jobId?: string;
+        };
         if (m.type === "FILL_PROPOSAL" && m.data) {
           const data = m.data;
           Promise.resolve(upworkAdapter.fillProposal(data)).then((result) => {
@@ -129,6 +158,10 @@ export default defineContentScript({
             sendResponse(result);
           });
           return true;
+        }
+        if (m.type === "WS_EVENT" && m.event === "job.failed") {
+          const payload = msg as { data?: { error?: string } };
+          showAiFailureToast(payload.data?.error ?? "unknown error");
         }
         if (m.type === "DETECT_JOBS") {
           void detectJobs();

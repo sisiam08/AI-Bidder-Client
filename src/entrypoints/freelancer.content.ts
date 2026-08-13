@@ -17,6 +17,30 @@ import type { ContentScriptContext } from "wxt/client";
 
 const cardByJobId = new Map<string, HTMLElement>();
 
+let lastAiFailureToast: { message: string; at: number } | null = null;
+
+function friendlyAiFailureMessage(error: string): string {
+  const provider = /AI provider \(([^)]+)\)/.exec(error)?.[1];
+  if (provider) {
+    const label = provider.toLowerCase() === "ollama" ? "Ollama" : provider;
+    return `AI analysis failed — ${label} is not installed or not running on your machine. You must install and start ${label}, then try again.`;
+  }
+  return "AI analysis failed — your AI provider is unreachable. Please install/start it or check your configuration.";
+}
+
+function showAiFailureToast(error: string) {
+  const now = Date.now();
+  if (
+    lastAiFailureToast &&
+    lastAiFailureToast.message === error &&
+    now - lastAiFailureToast.at < 10000
+  ) {
+    return;
+  }
+  lastAiFailureToast = { message: error, at: now };
+  showToast(friendlyAiFailureMessage(error), "error", 8000);
+}
+
 function highlightCard(jobId: string) {
   const card = cardByJobId.get(jobId);
   if (!card) return;
@@ -166,7 +190,7 @@ export default defineContentScript({
     browser.runtime.onMessage.addListener((msg: unknown) => {
       const m = msg as
         | { type: "FILL_PROPOSAL"; data: ApprovedProposal }
-        | { type: "WS_EVENT"; event: string; jobId?: string }
+        | { type: "WS_EVENT"; event: string; jobId?: string; data?: unknown }
         | { type: "DETECT_JOBS" }
         | { type: "NO_SESSION" };
       if (m.type === "FILL_PROPOSAL") {
@@ -179,6 +203,9 @@ export default defineContentScript({
       } else if (m.type === "WS_EVENT") {
         if (m.event === "job.analyzed" || m.event === "job.approved") {
           if (m.jobId) highlightCard(m.jobId);
+        } else if (m.event === "job.failed") {
+          const error = (m.data as { error?: string } | undefined)?.error ?? "unknown error";
+          showAiFailureToast(error);
         }
       } else if (m.type === "DETECT_JOBS") {
         void detectJobs();
