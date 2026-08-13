@@ -132,7 +132,7 @@ export default defineContentScript({
         ) {
           const result = freelancerAdapter.fillProposal(pending);
           handleFillResult(result, pending);
-          if (result.success) {
+          if (result.success || result.blocked) {
             pendingFillStorage.setValue(null);
             return;
           }

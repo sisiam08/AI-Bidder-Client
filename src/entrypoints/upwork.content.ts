@@ -8,9 +8,23 @@ import {
 import { submitDetectedJob } from "../lib/submit-job";
 import { showToast } from "../lib/toast";
 import { mountToastHost } from "../lib/toast-host";
-import type { ApprovedProposal } from "../lib/types";
+import { notifyBidBlocked } from "../lib/bid-blocked";
+import type { ApprovedProposal, FillResult } from "../lib/types";
 import { browser } from "wxt/browser";
 import type { ContentScriptContext } from "wxt/client";
+
+function handleFillResult(
+  result: FillResult | null | undefined,
+  data: ApprovedProposal,
+) {
+  if (!result || !result.blocked) return;
+  const reasons = result.blockedReasons ?? ["unspecified"];
+  const reasonText = reasons.join("; ");
+  showToast(`Bid blocked: ${reasonText}`, "error");
+  if (data.jobId) {
+    void notifyBidBlocked({ jobId: data.jobId, reasons });
+  }
+}
 
 async function detectJobs() {
   const token = await sessionTokenStorage.getValue();
@@ -73,7 +87,8 @@ export default defineContentScript({
           (targetId && currentId === targetId)
         ) {
           const result = upworkAdapter.fillProposal(pending);
-          if (result.success) {
+          handleFillResult(result, pending);
+          if (result.success || result.blocked) {
             pendingFillStorage.setValue(null);
             return;
           }
@@ -98,6 +113,7 @@ export default defineContentScript({
         const m = msg as { type?: string; data?: ApprovedProposal };
         if (m.type === "FILL_PROPOSAL" && m.data) {
           const result = upworkAdapter.fillProposal(m.data);
+          handleFillResult(result, m.data);
           sendResponse(result);
           return true;
         }

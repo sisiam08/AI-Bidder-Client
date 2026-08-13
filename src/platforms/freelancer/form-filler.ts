@@ -4,6 +4,15 @@ export function fillFreelancerProposal(data: ApprovedProposal): FillResult {
   const restrictions = detectBidRestrictions()
   const filledFields: string[] = []
 
+  if (restrictions.length > 0) {
+    return {
+      success: false,
+      blocked: true,
+      blockedReasons: restrictions,
+      filledFields,
+    }
+  }
+
   const textarea = document.querySelector<HTMLTextAreaElement>(
     'textarea#descriptionTextArea, fl-textarea[fltrackinglabel="ProposalDescriptionInput"] textarea, textarea[fltrackinglabel="ProposalDescriptionInput"]',
   )
@@ -36,15 +45,6 @@ export function fillFreelancerProposal(data: ApprovedProposal): FillResult {
       setNativeValue(timelineInput, String(days))
       highlight(timelineInput)
       filledFields.push('timeline')
-    }
-  }
-
-  if (restrictions.length > 0) {
-    return {
-      success: false,
-      blocked: true,
-      blockedReasons: restrictions,
-      filledFields,
     }
   }
 
@@ -91,6 +91,14 @@ function timelineToDays(timeline?: string): number | null {
 
 function detectBidRestrictions(): string[] {
   const reasons: string[] = []
+  const seen = new Set<string>()
+
+  const push = (reason: string) => {
+    const key = reason.toLowerCase()
+    if (seen.has(key)) return
+    seen.add(key)
+    reasons.push(reason)
+  }
 
   document
     .querySelectorAll<HTMLElement>(
@@ -98,8 +106,12 @@ function detectBidRestrictions(): string[] {
     )
     .forEach((banner) => {
       const title = banner.getAttribute('bannertitle') || ''
-      const text = (banner.textContent || '').trim().replace(/\s+/g, ' ')
-      reasons.push(`Warning banner: ${title || text || 'unspecified'}`)
+      const content = banner.querySelector('.Content, .Description')
+      const description = (content?.textContent || '')
+        .trim()
+        .replace(/\s+/g, ' ')
+      const reason = [title, description].filter(Boolean).join(' — ')
+      push(reason || 'Bidding is restricted on this project')
     })
 
   if (
@@ -107,14 +119,14 @@ function detectBidRestrictions(): string[] {
       'fl-link[fltrackinglabel="ClientAgreementSigningLink"], a[fltrackinglabel="ClientAgreementSigningLink"]',
     )
   ) {
-    reasons.push('Complete the required client agreement form before bidding')
+    push('Complete the required client agreement form before bidding')
   }
 
   const placeBid = document.querySelector<HTMLButtonElement>(
     'fl-button[fltrackinglabel="PlaceBidButton"] button, button[fltrackinglabel="PlaceBidButton"]',
   )
   if (placeBid && placeBid.disabled) {
-    reasons.push('Place Bid button is disabled')
+    push('Place Bid button is disabled')
   }
 
   return reasons

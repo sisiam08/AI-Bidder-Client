@@ -84,7 +84,7 @@ export default defineBackground(() => {
           type: 'FILL_PROPOSAL',
           data,
         })) as FillResult | undefined
-        if (result?.success) {
+        if (result?.success || result?.blocked) {
           await pendingFillStorage.setValue(null)
           return
         }
