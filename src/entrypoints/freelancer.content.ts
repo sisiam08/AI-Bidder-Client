@@ -1,7 +1,6 @@
 ﻿import { defineContentScript } from "wxt/sandbox";
 import { freelancerAdapter } from "../platforms/freelancer/index";
 import { expandCardDescriptions } from "../platforms/freelancer/extractor";
-import { getActiveAdapter } from "../platforms/registry";
 import {
   detectSettingsStorage,
   pendingFillStorage,
@@ -117,26 +116,41 @@ export default defineContentScript({
     if (w.__agenticFreelancerReady) return;
     w.__agenticFreelancerReady = true;
 
-    pendingFillStorage.getValue().then((pending) => {
-      if (
-        !pending ||
-        pending.platform !== "freelancer" ||
-        !pending.externalJobId
-      )
-        return;
-      const idMatch = location.pathname.match(/\/projects\/([^/]+)/);
-      if (
-        location.pathname === pending.externalJobId ||
-        location.pathname.startsWith(pending.externalJobId) ||
-        (idMatch && idMatch[1] === pending.externalJobId)
-      ) {
-        const result = freelancerAdapter.fillProposal(pending);
-        handleFillResult(result, pending);
-        if (result.success) {
-          pendingFillStorage.setValue(null);
+    const attemptPendingFill = () => {
+      pendingFillStorage.getValue().then((pending) => {
+        if (
+          !pending ||
+          pending.platform !== "freelancer" ||
+          !pending.externalJobId
+        )
+          return;
+        const idMatch = location.pathname.match(/\/projects\/([^/]+)/);
+        if (
+          location.pathname === pending.externalJobId ||
+          location.pathname.startsWith(pending.externalJobId) ||
+          (idMatch && idMatch[1] === pending.externalJobId)
+        ) {
+          const result = freelancerAdapter.fillProposal(pending);
+          handleFillResult(result, pending);
+          if (result.success) {
+            pendingFillStorage.setValue(null);
+            return;
+          }
         }
-      }
-    });
+        scheduleFillRetry();
+      });
+    };
+
+    let fillRetryTimer: number | undefined;
+    const scheduleFillRetry = () => {
+      if (fillRetryTimer) return;
+      fillRetryTimer = window.setTimeout(() => {
+        fillRetryTimer = undefined;
+        attemptPendingFill();
+      }, 2000);
+    };
+
+    attemptPendingFill();
 
     browser.runtime.onMessage.addListener((msg: unknown) => {
       const m = msg as
@@ -145,7 +159,7 @@ export default defineContentScript({
         | { type: "DETECT_JOBS" }
         | { type: "NO_SESSION" };
       if (m.type === "FILL_PROPOSAL") {
-        const result = getActiveAdapter()?.fillProposal(m.data);
+        const result = freelancerAdapter.fillProposal(m.data);
         handleFillResult(result, m.data);
       } else if (m.type === "WS_EVENT") {
         if (m.event === "job.analyzed" || m.event === "job.approved") {

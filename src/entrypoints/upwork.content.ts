@@ -1,6 +1,5 @@
 ﻿import { defineContentScript } from "wxt/sandbox";
 import { upworkAdapter } from "../platforms/upwork/index";
-import { getActiveAdapter } from "../platforms/registry";
 import {
   detectSettingsStorage,
   pendingFillStorage,
@@ -60,30 +59,45 @@ export default defineContentScript({
     if (w.__agenticUpworkReady) return;
     w.__agenticUpworkReady = true;
 
-    pendingFillStorage.getValue().then((pending) => {
-      if (!pending || pending.platform !== "upwork" || !pending.externalJobId)
-        return;
-      const targetId =
-        pending.externalJobId.match(/~([a-f0-9]+)/)?.[1] ??
-        pending.externalJobId;
-      const currentId = location.pathname.match(/~([a-f0-9]+)/)?.[1] ?? "";
-      if (
-        location.pathname === pending.externalJobId ||
-        location.pathname.startsWith(pending.externalJobId) ||
-        (targetId && currentId === targetId)
-      ) {
-        const result = upworkAdapter.fillProposal(pending);
-        if (result.success) {
-          pendingFillStorage.setValue(null);
+    const attemptPendingFill = () => {
+      pendingFillStorage.getValue().then((pending) => {
+        if (!pending || pending.platform !== "upwork" || !pending.externalJobId)
+          return;
+        const targetId =
+          pending.externalJobId.match(/~([a-f0-9]+)/)?.[1] ??
+          pending.externalJobId;
+        const currentId = location.pathname.match(/~([a-f0-9]+)/)?.[1] ?? "";
+        if (
+          location.pathname === pending.externalJobId ||
+          location.pathname.startsWith(pending.externalJobId) ||
+          (targetId && currentId === targetId)
+        ) {
+          const result = upworkAdapter.fillProposal(pending);
+          if (result.success) {
+            pendingFillStorage.setValue(null);
+            return;
+          }
         }
-      }
-    });
+        scheduleFillRetry();
+      });
+    };
+
+    let fillRetryTimer: number | undefined;
+    const scheduleFillRetry = () => {
+      if (fillRetryTimer) return;
+      fillRetryTimer = window.setTimeout(() => {
+        fillRetryTimer = undefined;
+        attemptPendingFill();
+      }, 2000);
+    };
+
+    attemptPendingFill();
 
     browser.runtime.onMessage.addListener(
       (msg: unknown, _sender, sendResponse: (response: unknown) => void) => {
         const m = msg as { type?: string; data?: ApprovedProposal };
         if (m.type === "FILL_PROPOSAL" && m.data) {
-          const result = getActiveAdapter()?.fillProposal(m.data);
+          const result = upworkAdapter.fillProposal(m.data);
           sendResponse(result);
           return true;
         }

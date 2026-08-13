@@ -1,6 +1,6 @@
 import { defineBackground } from 'wxt/sandbox'
 import { api } from '../lib/api-client'
-import { connect, onWsEvent } from '../lib/ws-client'
+import { connect, onWsEvent, reconnect } from '../lib/ws-client'
 import {
   detectSettingsStorage,
   pendingFillStorage,
@@ -16,6 +16,7 @@ import { browser } from 'wxt/browser'
 export default defineBackground(() => {
   connect()
   void ensureSession()
+  void reconnectWhenLoggedIn()
 
   browser.runtime.onMessage.addListener(
     (msg: unknown): Promise<SubmitResult | { status: string }> | undefined => {
@@ -142,6 +143,14 @@ async function ensureSession() {
   }
 }
 
+async function reconnectWhenLoggedIn() {
+  await sessionTokenStorage.watch(async (token) => {
+    if (token) {
+      await reconnect()
+    }
+  })
+}
+
 async function syncAutoReloadAlarm(settings?: DetectSettings | null) {
   const s = settings ?? (await detectSettingsStorage.getValue())
   try {
@@ -250,7 +259,7 @@ function isPlatformTab(url: string, platform?: string): boolean {
 
 function matchesProposalTab(url: string, data: ApprovedProposal): boolean {
   const externalJobId = data.externalJobId || ''
-  const path = url.split('?')[0].split('#')[0]
+  const path = url.split('?')[0].split('#')[0].replace(/\/+$/, '')
   if (path === externalJobId || path.startsWith(externalJobId)) return true
   if (/upwork\.com/.test(url)) {
     const targetId = externalJobId.match(/~([a-f0-9]+)/)?.[1]
@@ -258,8 +267,15 @@ function matchesProposalTab(url: string, data: ApprovedProposal): boolean {
     return !!targetId && targetId === currentId
   }
   if (/freelancer\.com/.test(url)) {
-    const currentId = path.match(/\/projects\/([^/]+)/)?.[1]
-    return !!currentId && currentId === externalJobId
+    const targetPath = externalJobId.startsWith('/')
+      ? externalJobId.replace(/\/+$/, '')
+      : `/projects/${externalJobId}`
+    const normalized = path.replace(/\/bid$/, '')
+    return (
+      normalized === targetPath ||
+      normalized.startsWith(`${targetPath}/`) ||
+      targetPath.endsWith(normalized)
+    )
   }
   return false
 }

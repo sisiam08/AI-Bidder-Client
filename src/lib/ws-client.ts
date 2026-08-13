@@ -4,7 +4,7 @@ import { sessionTokenStorage } from './storage'
 import type { WsEvent } from './types'
 
 let socket: Socket | null = null
-let reconnectTimeout: ReturnType<typeof setTimeout> | null = null
+let connecting: Promise<void> | null = null
 let listeners: Array<(event: WsEvent) => void> = []
 
 function notifyListeners(event: WsEvent) {
@@ -12,7 +12,7 @@ function notifyListeners(event: WsEvent) {
     try {
       listener(event)
     } catch {
-      
+      // ignore listener errors
     }
   }
 }
@@ -44,16 +44,35 @@ function mapEvent(event: string, data: unknown): WsEvent | null {
   }
 }
 
-export async function connect() {
-  if (socket?.connected || socket?.active) {
-    return
-  }
-
+function wsUrl(): string {
   const wsOrigin = API_BASE_URL.replace(/\/api$/, '').replace(/^http/, 'ws')
-  const url = `${wsOrigin}/v1/ws`
+  return `${wsOrigin}/v1/ws`
+}
+
+export function connect(): Promise<void> {
+  if (connecting) return connecting
+  connecting = openSocket().finally(() => {
+    connecting = null
+  })
+  return connecting
+}
+
+export async function reconnect(): Promise<void> {
+  const prev = socket
+  socket = null
+  connecting = null
+  if (prev) {
+    prev.removeAllListeners()
+    prev.disconnect()
+  }
+  await connect()
+}
+
+async function openSocket(): Promise<void> {
+  const url = wsUrl()
   const token = await sessionTokenStorage.getValue()
 
-  socket = io(url, {
+  const s = io(url, {
     transports: ['websocket'],
     auth: token ? { token } : undefined,
     reconnection: true,
@@ -63,28 +82,42 @@ export async function connect() {
     randomizationFactor: 0.5,
     timeout: 10000,
   })
+  socket = s
+  attachHandlers(s, url)
 
-  socket.on('connect', () => {})
-  socket.on('connect_error', (err) => {
+  await new Promise<void>((resolve) => {
+    if (s.connected) {
+      resolve()
+      return
+    }
+    s.once('connect', () => resolve())
+    s.once('connect_error', () => resolve())
+  })
+}
+
+function attachHandlers(s: Socket, url: string) {
+  s.on('connect', () => {
+    console.log('[ws] connected to', url)
+  })
+  s.on('connect_error', (err) => {
     console.warn('[ws] connect_error:', err.message)
   })
   for (const event of WS_EVENTS) {
-    socket.on(event, (data) => {
+    s.on(event, (data) => {
       const mapped = mapEvent(event, data)
       if (mapped) notifyListeners(mapped)
     })
   }
-  socket.on('disconnect', (reason) => {
+  s.on('disconnect', (reason) => {
     console.warn('[ws] disconnected:', reason)
   })
 }
 
 export function disconnect() {
-  if (reconnectTimeout) {
-    clearTimeout(reconnectTimeout)
-    reconnectTimeout = null
+  if (socket) {
+    socket.removeAllListeners()
+    socket.disconnect()
+    socket = null
   }
   listeners = []
-  socket?.disconnect()
-  socket = null
 }

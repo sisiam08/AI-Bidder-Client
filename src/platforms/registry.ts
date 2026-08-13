@@ -22,10 +22,16 @@ export function getProposalUrl(
       const id = idMatch?.[1] ?? externalJobId
       return `https://www.upwork.com/ab/proposals/apply/~${id}`
     }
-    case 'freelancer':
-      return externalJobId.startsWith('/')
-        ? `https://www.freelancer.com${externalJobId}`
-        : `https://www.freelancer.com/projects/${externalJobId}`
+    case 'freelancer': {
+      const base = externalJobId.startsWith('/')
+        ? externalJobId
+        : `/projects/${externalJobId}`
+      const trimmed = base.replace(/\/+$/, '')
+      const path = trimmed.endsWith('/bid')
+        ? trimmed
+        : `${trimmed}/bid`
+      return `https://www.freelancer.com${path}`
+    }
     default:
       return null
   }

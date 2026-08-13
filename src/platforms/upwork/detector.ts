@@ -3,7 +3,10 @@ export function isUpworkJobPage(): boolean {
 }
 
 export function isUpworkProposalPage(): boolean {
-  return /^https:\/\/(www\.)?upwork\.com\/proposals\/~/.test(location.href)
+  return (
+    /^https:\/\/(www\.)?upwork\.com\/proposals\/~/.test(location.href) ||
+    /^https:\/\/(www\.)?upwork\.com\/ab\/proposals\/apply\/~/.test(location.href)
+  )
 }
 
 export function hasUpworkCards(): boolean {
